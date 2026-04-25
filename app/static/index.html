@@ -7,133 +7,213 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     * { box-sizing: border-box; }
-    body { font-family: 'Segoe UI', sans-serif; }
-    textarea { font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; resize: none; }
-    .tab-active { border-bottom: 2px solid #60a5fa; color: #60a5fa; }
-    #output-code { white-space: pre-wrap; font-family: 'Cascadia Code','Fira Code','Consolas',monospace; font-size: 13px; }
-    .spinner { border: 3px solid #334155; border-top-color: #60a5fa; border-radius: 50%; width: 20px; height: 20px; animation: spin .7s linear infinite; display:inline-block; }
+    body { font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+    .code-font { font-family: 'Cascadia Code','Fira Code','Consolas',monospace; }
+    textarea { resize: none; }
+    .tab-btn { padding: 8px 16px; font-size: 13px; font-weight: 500; border-bottom: 2px solid transparent; transition: all .15s; color: #94a3b8; cursor: pointer; }
+    .tab-btn:hover { color: #e2e8f0; }
+    .tab-btn.active { border-bottom-color: #60a5fa; color: #60a5fa; }
+    .panel { display: none; }
+    .panel.active { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+    .spinner { border: 3px solid #1e293b; border-top-color: #60a5fa; border-radius: 50%; width: 18px; height: 18px; animation: spin .6s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #0f172a; } ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    pre { white-space: pre-wrap; word-break: break-word; }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; }
+    .btn-primary { background: #2563eb; color: white; border-radius: 10px; padding: 8px 18px; font-size: 13px; font-weight: 500; transition: background .15s; cursor: pointer; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-secondary { background: #1e293b; color: #cbd5e1; border-radius: 8px; padding: 5px 12px; font-size: 12px; transition: background .15s; cursor: pointer; }
+    .btn-secondary:hover { background: #334155; }
+    .btn-danger { background: #7f1d1d; color: #fca5a5; border-radius: 8px; padding: 4px 10px; font-size: 11px; cursor: pointer; }
+    .btn-danger:hover { background: #991b1b; }
+    .input-base { background: #0f172a; border: 1px solid #1e293b; border-radius: 10px; padding: 10px 12px; color: #e2e8f0; font-size: 13px; width: 100%; transition: border-color .15s; }
+    .input-base:focus { outline: none; border-color: #3b82f6; }
+    .badge { font-size: 10px; padding: 2px 7px; border-radius: 20px; font-weight: 600; }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 h-screen flex flex-col overflow-hidden">
+<body class="bg-slate-950 text-slate-100 h-screen flex flex-col">
 
-  <!-- Header -->
-  <header class="flex items-center justify-between px-6 py-3 bg-slate-900 border-b border-slate-800 shrink-0">
+  <!-- ── HEADER ─────────────────────────────────────────────────────── -->
+  <header class="flex items-center justify-between px-5 py-2.5 bg-slate-900 border-b border-slate-800 shrink-0">
     <div class="flex items-center gap-3">
-      <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-sm">⚙</div>
+      <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-base">⚙</div>
       <div>
-        <span class="font-semibold">Cognia <span class="text-blue-400">Dev</span></span>
+        <span class="font-semibold text-sm">Cognia <span class="text-blue-400">Dev</span></span>
         <span class="text-slate-500 text-xs ml-2">Agente C# / Unity</span>
       </div>
     </div>
-    <div class="flex items-center gap-2 text-xs">
-      <span class="w-2 h-2 rounded-full bg-slate-600" id="ollama-dot"></span>
-      <span id="ollama-text" class="text-slate-400">verificando Ollama...</span>
+    <div class="flex items-center gap-4">
+      <div class="flex items-center gap-1.5 text-xs">
+        <span class="w-2 h-2 rounded-full bg-slate-600" id="ollama-dot"></span>
+        <span id="ollama-text" class="text-slate-400">verificando...</span>
+      </div>
+      <div id="memoria-badge" class="hidden badge bg-blue-900 text-blue-300">memoria activa</div>
     </div>
   </header>
 
-  <!-- Tabs -->
-  <div class="flex gap-0 bg-slate-900 border-b border-slate-800 px-6 shrink-0">
-    <button onclick="setTab('generar')" id="tab-generar"
-      class="tab-active px-4 py-2 text-sm font-medium transition-colors">
-      ✨ Generar código
-    </button>
-    <button onclick="setTab('corregir')" id="tab-corregir"
-      class="px-4 py-2 text-sm font-medium text-slate-400 hover:text-slate-200 transition-colors">
-      🔧 Corregir código
-    </button>
-  </div>
-
-  <!-- Main content -->
+  <!-- ── MAIN LAYOUT: left panel + right panel ─────────────────────── -->
   <div class="flex flex-1 overflow-hidden">
 
-    <!-- Left panel: Input -->
-    <div class="w-1/2 flex flex-col border-r border-slate-800 overflow-hidden">
+    <!-- ══ LEFT: Código (tabs: Generar / Corregir) ══════════════════════ -->
+    <div class="flex flex-col w-[52%] border-r border-slate-800 overflow-hidden">
 
-      <!-- GENERAR panel -->
-      <div id="panel-generar" class="flex flex-col flex-1 overflow-hidden">
-        <div class="px-4 pt-4 pb-2 shrink-0">
-          <label class="text-xs text-slate-400 uppercase tracking-wider">Instrucción</label>
-          <textarea id="instruccion"
-            class="mt-2 w-full h-28 bg-slate-800 rounded-xl p-3 text-sm text-slate-100 placeholder-slate-500 border border-slate-700 focus:border-blue-500 focus:outline-none"
-            placeholder="Ej: Crea un script de movimiento de personaje con WASD, velocidad serializable y soporte para Rigidbody2D"></textarea>
+      <!-- Tab bar -->
+      <div class="flex bg-slate-900 border-b border-slate-800 px-4 shrink-0">
+        <button class="tab-btn active" onclick="setMainTab('generar')" id="mtab-generar">✨ Generar</button>
+        <button class="tab-btn" onclick="setMainTab('corregir')" id="mtab-corregir">🔧 Corregir</button>
+      </div>
+
+      <!-- GENERAR -->
+      <div class="panel active" id="mpanel-generar">
+        <div class="flex flex-col gap-3 p-4 shrink-0">
+          <div>
+            <label class="text-xs text-slate-400 uppercase tracking-wider">Instrucción <span class="text-slate-600 normal-case">(Ctrl+Enter para generar)</span></label>
+            <textarea id="instruccion" class="input-base code-font mt-1.5" style="height:100px"
+              placeholder="Ej: Crea un script de movimiento con WASD, velocidad serializable y soporte Rigidbody2D"></textarea>
+          </div>
+          <div class="flex items-center justify-between">
+            <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer select-none">
+              <input type="checkbox" id="usar-memoria-gen" checked class="accent-blue-500">
+              Usar memoria del proyecto
+            </label>
+            <button class="btn-primary" onclick="generar()">Generar →</button>
+          </div>
         </div>
-        <div class="px-4 pb-2 shrink-0">
-          <label class="text-xs text-slate-400 uppercase tracking-wider">Contexto del proyecto <span class="text-slate-600">(opcional)</span></label>
-          <textarea id="contexto"
-            class="mt-2 w-full h-20 bg-slate-800 rounded-xl p-3 text-xs text-slate-300 placeholder-slate-600 border border-slate-700 focus:border-blue-500 focus:outline-none"
-            placeholder="Ej: Proyecto 2D top-down, uso Rigidbody2D, tengo un GameManager singleton, prefabs en Resources/Prefabs/"></textarea>
-        </div>
-        <div class="px-4 pb-4 shrink-0">
-          <button onclick="generar()"
-            class="w-full bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-medium py-2.5 rounded-xl transition-colors text-sm">
-            Generar →
-          </button>
+
+        <!-- Output -->
+        <div class="flex-1 mx-4 mb-4 overflow-hidden flex flex-col gap-2">
+          <div class="flex items-center justify-between shrink-0">
+            <span class="text-xs text-slate-500 uppercase tracking-wider">Resultado</span>
+            <div class="flex items-center gap-2">
+              <div id="spinner-gen" class="spinner hidden"></div>
+              <button id="btn-copiar-gen" class="btn-secondary hidden" onclick="copiar('output-gen')">📋 Copiar</button>
+            </div>
+          </div>
+          <div class="card flex-1 overflow-auto p-4">
+            <div id="placeholder-gen" class="text-slate-600 text-sm h-full flex items-center justify-center">El código generado aparecerá aquí</div>
+            <pre id="output-gen" class="code-font text-green-300 text-xs leading-relaxed hidden"></pre>
+          </div>
         </div>
       </div>
 
-      <!-- CORREGIR panel -->
-      <div id="panel-corregir" class="flex flex-col flex-1 overflow-hidden hidden">
-        <div class="px-4 pt-4 pb-2 shrink-0">
-          <label class="text-xs text-slate-400 uppercase tracking-wider">Código a corregir</label>
-          <textarea id="codigo-input"
-            class="mt-2 w-full bg-slate-800 rounded-xl p-3 text-sm border border-slate-700 focus:border-blue-500 focus:outline-none text-green-300"
-            style="height:180px"
-            placeholder="Pega aquí tu script C# con el error..."></textarea>
+      <!-- CORREGIR -->
+      <div class="panel" id="mpanel-corregir">
+        <div class="flex flex-col gap-3 p-4 shrink-0">
+          <div>
+            <label class="text-xs text-slate-400 uppercase tracking-wider">Código a corregir</label>
+            <textarea id="codigo-input" class="input-base code-font mt-1.5 text-green-300" style="height:130px"
+              placeholder="Pega aquí tu script C# con el error..."></textarea>
+          </div>
+          <div>
+            <label class="text-xs text-slate-400 uppercase tracking-wider">Error / descripción <span class="text-slate-600 normal-case">(opcional)</span></label>
+            <textarea id="error-input" class="input-base mt-1" style="height:45px; font-size:12px"
+              placeholder="NullReferenceException en línea 34, o 'el personaje no se mueve'..."></textarea>
+          </div>
+          <div class="flex items-center justify-between">
+            <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer select-none">
+              <input type="checkbox" id="usar-memoria-cor" checked class="accent-blue-500">
+              Usar memoria del proyecto
+            </label>
+            <button class="btn-primary" style="background:#c2410c" onclick="corregir()">Corregir →</button>
+          </div>
         </div>
-        <div class="px-4 pb-2 shrink-0">
-          <label class="text-xs text-slate-400 uppercase tracking-wider">Error / descripción <span class="text-slate-600">(opcional)</span></label>
-          <textarea id="error-input"
-            class="mt-2 w-full h-16 bg-slate-800 rounded-xl p-3 text-xs text-slate-300 placeholder-slate-600 border border-slate-700 focus:border-blue-500 focus:outline-none"
-            placeholder="Ej: NullReferenceException en línea 34, o 'el personaje no se mueve'"></textarea>
-        </div>
-        <div class="px-4 pb-4 shrink-0">
-          <button onclick="corregir()"
-            class="w-full bg-orange-600 hover:bg-orange-500 active:bg-orange-700 text-white font-medium py-2.5 rounded-xl transition-colors text-sm">
-            Corregir →
-          </button>
+
+        <!-- Output -->
+        <div class="flex-1 mx-4 mb-4 overflow-hidden flex flex-col gap-2">
+          <div class="flex items-center justify-between shrink-0">
+            <span class="text-xs text-slate-500 uppercase tracking-wider">Resultado</span>
+            <div class="flex items-center gap-2">
+              <div id="spinner-cor" class="spinner hidden"></div>
+              <button id="btn-copiar-cor" class="btn-secondary hidden" onclick="copiar('output-cor')">📋 Copiar</button>
+            </div>
+          </div>
+          <div class="card flex-1 overflow-auto p-4">
+            <div id="placeholder-cor" class="text-slate-600 text-sm h-full flex items-center justify-center">El código corregido aparecerá aquí</div>
+            <pre id="output-cor" class="code-font text-green-300 text-xs leading-relaxed hidden"></pre>
+          </div>
+          <div id="cambios-panel" class="hidden card p-3 shrink-0 max-h-28 overflow-auto">
+            <span class="text-yellow-400 text-xs font-semibold">Cambios:</span>
+            <pre id="cambios-text" class="text-slate-300 text-xs mt-1 whitespace-pre-wrap"></pre>
+          </div>
         </div>
       </div>
 
     </div>
 
-    <!-- Right panel: Output -->
-    <div class="w-1/2 flex flex-col overflow-hidden">
-      <div class="flex items-center justify-between px-4 pt-4 pb-2 shrink-0">
-        <label class="text-xs text-slate-400 uppercase tracking-wider">Resultado</label>
-        <div class="flex gap-2">
-          <span id="spinner" class="hidden spinner"></span>
-          <button onclick="copiarCodigo()" id="btn-copiar"
-            class="hidden text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1 rounded-lg transition-colors">
-            📋 Copiar
-          </button>
+    <!-- ══ RIGHT: Memoria (tabs: Proyecto / Convenciones / Historial) ═══ -->
+    <div class="flex flex-col w-[48%] overflow-hidden">
+
+      <!-- Tab bar -->
+      <div class="flex bg-slate-900 border-b border-slate-800 px-4 shrink-0">
+        <button class="tab-btn active" onclick="setRightTab('proyecto')" id="rtab-proyecto">🗂 Proyecto</button>
+        <button class="tab-btn" onclick="setRightTab('convenciones')" id="rtab-convenciones">📋 Convenciones</button>
+        <button class="tab-btn" onclick="setRightTab('historial')" id="rtab-historial">🕒 Historial</button>
+      </div>
+
+      <!-- PROYECTO -->
+      <div class="panel active overflow-auto p-4 gap-3" id="rpanel-proyecto">
+        <div class="card p-4 shrink-0">
+          <p class="text-xs text-slate-400 mb-3">Datos clave del proyecto. Cognia los incluye automáticamente en cada prompt.</p>
+          <div class="flex gap-2 mb-2">
+            <input id="proj-clave" type="text" class="input-base" style="width:35%" placeholder="Clave (ej: nombre)">
+            <input id="proj-valor" type="text" class="input-base" placeholder="Valor (ej: Juego2D_TopDown)">
+            <button class="btn-primary shrink-0" onclick="addProyecto()">+</button>
+          </div>
+        </div>
+        <div id="proyecto-lista" class="flex flex-col gap-2"></div>
+        <div class="card p-3 shrink-0">
+          <p class="text-xs text-slate-500 mb-1">Sugerencias de claves útiles:</p>
+          <div class="flex flex-wrap gap-1.5">
+            <span class="badge bg-slate-800 text-slate-400 cursor-pointer" onclick="setProyectoClave('nombre')">nombre</span>
+            <span class="badge bg-slate-800 text-slate-400 cursor-pointer" onclick="setProyectoClave('tipo')">tipo (2D/3D)</span>
+            <span class="badge bg-slate-800 text-slate-400 cursor-pointer" onclick="setProyectoClave('version_unity')">version_unity</span>
+            <span class="badge bg-slate-800 text-slate-400 cursor-pointer" onclick="setProyectoClave('arquitectura')">arquitectura</span>
+            <span class="badge bg-slate-800 text-slate-400 cursor-pointer" onclick="setProyectoClave('fisica')">fisica</span>
+            <span class="badge bg-slate-800 text-slate-400 cursor-pointer" onclick="setProyectoClave('assets_path')">assets_path</span>
+          </div>
         </div>
       </div>
 
-      <!-- Output area -->
-      <div class="flex-1 mx-4 mb-4 bg-slate-900 rounded-xl border border-slate-800 overflow-auto">
-        <div id="output-placeholder" class="flex items-center justify-center h-full text-slate-600 text-sm">
-          El código generado aparecerá aquí
+      <!-- CONVENCIONES -->
+      <div class="panel overflow-auto p-4 gap-3" id="rpanel-convenciones">
+        <div class="card p-4 shrink-0">
+          <p class="text-xs text-slate-400 mb-3">Convenciones de código de tu proyecto. El agente las respeta al generar o corregir.</p>
+          <input id="conv-titulo" type="text" class="input-base mb-2" placeholder="Título (ej: Nombres de variables)">
+          <textarea id="conv-contenido" class="input-base mb-2" style="height:60px; font-size:12px"
+            placeholder="Ej: Usar camelCase para variables privadas, PascalCase para métodos públicos"></textarea>
+          <button class="btn-primary" onclick="addConvencion()">Agregar convención</button>
         </div>
-        <pre id="output-code" class="hidden p-4 text-green-300 leading-relaxed"></pre>
+        <div id="convenciones-lista" class="flex flex-col gap-2"></div>
+        <div class="card p-3 shrink-0">
+          <p class="text-xs text-slate-500 mb-1">Convenciones de Unity comunes:</p>
+          <div class="flex flex-wrap gap-1.5">
+            <span class="badge bg-slate-800 text-slate-400 cursor-pointer" onclick="quickConvencion('Prefabs','Todos los prefabs van en Resources/Prefabs/')">Prefabs</span>
+            <span class="badge bg-slate-800 text-slate-400 cursor-pointer" onclick="quickConvencion('Singleton','GameManager es singleton con DontDestroyOnLoad')">Singleton</span>
+            <span class="badge bg-slate-800 text-slate-400 cursor-pointer" onclick="quickConvencion('Naming','PascalCase para clases, camelCase para campos privados')">Naming</span>
+            <span class="badge bg-slate-800 text-slate-400 cursor-pointer" onclick="quickConvencion('SerializeField','Usar [SerializeField] en vez de public para el inspector')">SerializeField</span>
+          </div>
+        </div>
       </div>
 
-      <!-- Cambios panel (solo para correccion) -->
-      <div id="cambios-panel" class="hidden mx-4 mb-4 bg-slate-800 rounded-xl border border-slate-700 p-3 text-xs text-slate-300 max-h-32 overflow-auto">
-        <span class="text-yellow-400 font-medium">Cambios realizados:</span>
-        <pre id="cambios-text" class="mt-1 whitespace-pre-wrap"></pre>
+      <!-- HISTORIAL -->
+      <div class="panel overflow-auto p-4 gap-2" id="rpanel-historial">
+        <div class="flex items-center justify-between shrink-0">
+          <span class="text-xs text-slate-400">Últimas interacciones con el agente</span>
+          <button class="btn-secondary text-xs" onclick="loadHistorial()">↻ Actualizar</button>
+        </div>
+        <div id="historial-lista" class="flex flex-col gap-2"></div>
       </div>
+
     </div>
-
   </div>
 
   <script>
     const API = 'http://localhost:8001';
-    let ultimoCodigo = '';
 
-    // Health check
-    async function checkOllama() {
+    // ── Health ─────────────────────────────────────────────────────────────
+    async function checkHealth() {
       try {
         const r = await fetch(`${API}/api/health`);
         const d = await r.json();
@@ -141,126 +221,235 @@
         const txt = document.getElementById('ollama-text');
         if (d.ollama) {
           dot.className = 'w-2 h-2 rounded-full bg-green-500';
-          const modelo = d.modelos.find(m => m.includes('qwen2.5-coder')) || d.modelos[0] || 'desconocido';
-          txt.textContent = `Ollama · ${modelo}`;
+          const m = d.modelos.find(x => x.includes('qwen2.5-coder')) || d.modelos[0] || '?';
+          txt.textContent = `Ollama · ${m}`;
         } else {
           dot.className = 'w-2 h-2 rounded-full bg-yellow-500';
-          txt.textContent = 'Ollama no detectado — inicia Ollama';
+          txt.textContent = 'Ollama no detectado';
         }
       } catch {
         document.getElementById('ollama-dot').className = 'w-2 h-2 rounded-full bg-red-500';
-        document.getElementById('ollama-text').textContent = 'Sin conexión con Cognia Dev';
+        document.getElementById('ollama-text').textContent = 'Sin conexión';
       }
     }
-    checkOllama();
-    setInterval(checkOllama, 15000);
+    checkHealth();
+    setInterval(checkHealth, 15000);
 
-    // Tab switching
-    function setTab(tab) {
-      document.getElementById('panel-generar').classList.toggle('hidden', tab !== 'generar');
-      document.getElementById('panel-corregir').classList.toggle('hidden', tab !== 'corregir');
-      document.getElementById('tab-generar').className = tab === 'generar'
-        ? 'tab-active px-4 py-2 text-sm font-medium transition-colors'
-        : 'px-4 py-2 text-sm font-medium text-slate-400 hover:text-slate-200 transition-colors';
-      document.getElementById('tab-corregir').className = tab === 'corregir'
-        ? 'tab-active px-4 py-2 text-sm font-medium transition-colors'
-        : 'px-4 py-2 text-sm font-medium text-slate-400 hover:text-slate-200 transition-colors';
-      limpiarOutput();
+    // ── Tabs ───────────────────────────────────────────────────────────────
+    function setMainTab(tab) {
+      ['generar','corregir'].forEach(t => {
+        document.getElementById(`mtab-${t}`).classList.toggle('active', t === tab);
+        document.getElementById(`mpanel-${t}`).classList.toggle('active', t === tab);
+      });
+    }
+    function setRightTab(tab) {
+      ['proyecto','convenciones','historial'].forEach(t => {
+        document.getElementById(`rtab-${t}`).classList.toggle('active', t === tab);
+        document.getElementById(`rpanel-${t}`).classList.toggle('active', t === tab);
+      });
+      if (tab === 'historial') loadHistorial();
+      if (tab === 'proyecto') loadProyecto();
+      if (tab === 'convenciones') loadConvenciones();
     }
 
-    function setLoading(loading) {
-      document.getElementById('spinner').classList.toggle('hidden', !loading);
-    }
-
-    function limpiarOutput() {
-      document.getElementById('output-placeholder').classList.remove('hidden');
-      document.getElementById('output-code').classList.add('hidden');
-      document.getElementById('output-code').textContent = '';
-      document.getElementById('btn-copiar').classList.add('hidden');
-      document.getElementById('cambios-panel').classList.add('hidden');
-      ultimoCodigo = '';
-    }
-
-    function mostrarCodigo(codigo, cambios) {
-      document.getElementById('output-placeholder').classList.add('hidden');
-      const pre = document.getElementById('output-code');
-      pre.textContent = codigo;
-      pre.classList.remove('hidden');
-      document.getElementById('btn-copiar').classList.remove('hidden');
-      ultimoCodigo = codigo;
-      if (cambios) {
-        document.getElementById('cambios-text').textContent = cambios;
-        document.getElementById('cambios-panel').classList.remove('hidden');
-      }
-    }
-
-    function mostrarError(msg) {
-      document.getElementById('output-placeholder').classList.add('hidden');
-      const pre = document.getElementById('output-code');
-      pre.textContent = '❌ ' + msg;
-      pre.classList.remove('hidden');
-      pre.style.color = '#f87171';
-    }
+    // ── Generar ────────────────────────────────────────────────────────────
+    document.getElementById('instruccion').addEventListener('keydown', e => {
+      if (e.key === 'Enter' && e.ctrlKey) generar();
+    });
 
     async function generar() {
       const instruccion = document.getElementById('instruccion').value.trim();
       if (!instruccion) return;
-      limpiarOutput();
-      setLoading(true);
+      setOutput('gen', null);
+      setLoading('gen', true);
       try {
         const r = await fetch(`${API}/api/generar`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {'Content-Type':'application/json'},
           body: JSON.stringify({
             instruccion,
-            contexto: document.getElementById('contexto').value.trim() || null,
+            usar_memoria: document.getElementById('usar-memoria-gen').checked,
           })
         });
         const d = await r.json();
-        if (d.error) mostrarError(d.error);
-        else mostrarCodigo(d.codigo);
-      } catch (e) {
-        mostrarError('No se pudo conectar con Cognia Dev. ¿Está corriendo el servidor?');
-      }
-      setLoading(false);
+        if (d.error) setOutput('gen', null, d.error);
+        else setOutput('gen', d.codigo);
+      } catch { setOutput('gen', null, 'No se pudo conectar con el servidor.'); }
+      setLoading('gen', false);
     }
 
     async function corregir() {
       const codigo = document.getElementById('codigo-input').value.trim();
       if (!codigo) return;
-      limpiarOutput();
-      setLoading(true);
+      document.getElementById('cambios-panel').classList.add('hidden');
+      setOutput('cor', null);
+      setLoading('cor', true);
       try {
         const r = await fetch(`${API}/api/corregir`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {'Content-Type':'application/json'},
           body: JSON.stringify({
             codigo,
             error: document.getElementById('error-input').value.trim() || null,
+            usar_memoria: document.getElementById('usar-memoria-cor').checked,
           })
         });
         const d = await r.json();
-        if (d.error) mostrarError(d.error);
-        else mostrarCodigo(d.codigo_corregido, d.cambios);
-      } catch (e) {
-        mostrarError('No se pudo conectar con Cognia Dev. ¿Está corriendo el servidor?');
-      }
-      setLoading(false);
+        if (d.error) setOutput('cor', null, d.error);
+        else {
+          setOutput('cor', d.codigo_corregido);
+          if (d.cambios) {
+            document.getElementById('cambios-text').textContent = d.cambios;
+            document.getElementById('cambios-panel').classList.remove('hidden');
+          }
+        }
+      } catch { setOutput('cor', null, 'No se pudo conectar con el servidor.'); }
+      setLoading('cor', false);
     }
 
-    function copiarCodigo() {
-      if (!ultimoCodigo) return;
-      navigator.clipboard.writeText(ultimoCodigo).then(() => {
-        const btn = document.getElementById('btn-copiar');
+    // ── Helpers output ─────────────────────────────────────────────────────
+    function setOutput(id, codigo, error) {
+      const ph  = document.getElementById(`placeholder-${id}`);
+      const pre = document.getElementById(`output-${id}`);
+      const btn = document.getElementById(`btn-copiar-${id}`);
+      if (!codigo && !error) {
+        ph.classList.remove('hidden'); pre.classList.add('hidden'); btn.classList.add('hidden');
+        pre.textContent = ''; pre.style.color = '';
+        return;
+      }
+      ph.classList.add('hidden'); pre.classList.remove('hidden');
+      if (error) { pre.textContent = '❌ ' + error; pre.style.color = '#f87171'; btn.classList.add('hidden'); }
+      else { pre.textContent = codigo; pre.style.color = '#86efac'; btn.classList.remove('hidden'); }
+    }
+
+    function setLoading(id, v) {
+      document.getElementById(`spinner-${id}`).classList.toggle('hidden', !v);
+    }
+
+    function copiar(id) {
+      const text = document.getElementById(id).textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.getElementById(`btn-copiar-${id.replace('output-','')}`);
+        const orig = btn.textContent;
         btn.textContent = '✅ Copiado';
-        setTimeout(() => btn.textContent = '📋 Copiar', 2000);
+        setTimeout(() => btn.textContent = orig, 2000);
       });
     }
 
-    // Enter en instruccion = generar
-    document.getElementById('instruccion').addEventListener('keydown', e => {
-      if (e.key === 'Enter' && e.ctrlKey) generar();
-    });
+    // ── Proyecto ───────────────────────────────────────────────────────────
+    async function loadProyecto() {
+      const r = await fetch(`${API}/api/memoria/proyecto`);
+      const d = await r.json();
+      const lista = document.getElementById('proyecto-lista');
+      const datos = d.datos || {};
+      const keys = Object.keys(datos);
+      document.getElementById('memoria-badge').classList.toggle('hidden', keys.length === 0);
+      lista.innerHTML = keys.length === 0
+        ? '<p class="text-slate-600 text-sm text-center py-4">No hay datos del proyecto aún.</p>'
+        : keys.map(k => `
+          <div class="card p-3 flex items-start justify-between gap-3">
+            <div class="flex-1 min-w-0">
+              <span class="text-blue-400 text-xs font-semibold uppercase">${k}</span>
+              <p class="text-slate-200 text-sm mt-0.5 break-words">${datos[k]}</p>
+            </div>
+            <button class="btn-danger shrink-0" onclick="delProyecto('${k}')">✕</button>
+          </div>`).join('');
+    }
+
+    async function addProyecto() {
+      const clave = document.getElementById('proj-clave').value.trim();
+      const valor = document.getElementById('proj-valor').value.trim();
+      if (!clave || !valor) return;
+      await fetch(`${API}/api/memoria/proyecto`, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({clave, valor})
+      });
+      document.getElementById('proj-clave').value = '';
+      document.getElementById('proj-valor').value = '';
+      loadProyecto();
+    }
+
+    async function delProyecto(clave) {
+      await fetch(`${API}/api/memoria/proyecto/${encodeURIComponent(clave)}`, {method:'DELETE'});
+      loadProyecto();
+    }
+
+    function setProyectoClave(c) {
+      document.getElementById('proj-clave').value = c;
+      document.getElementById('proj-valor').focus();
+    }
+
+    // ── Convenciones ────────────────────────────────────────────────────────
+    async function loadConvenciones() {
+      const r = await fetch(`${API}/api/memoria/convenciones`);
+      const d = await r.json();
+      const lista = document.getElementById('convenciones-lista');
+      const items = d.convenciones || [];
+      lista.innerHTML = items.length === 0
+        ? '<p class="text-slate-600 text-sm text-center py-4">No hay convenciones aún.</p>'
+        : items.map(c => `
+          <div class="card p-3 flex items-start justify-between gap-3">
+            <div class="flex-1 min-w-0">
+              <span class="text-orange-400 text-xs font-semibold">${c.titulo}</span>
+              <p class="text-slate-300 text-xs mt-0.5 break-words">${c.contenido}</p>
+            </div>
+            <button class="btn-danger shrink-0" onclick="delConvencion(${c.id})">✕</button>
+          </div>`).join('');
+    }
+
+    async function addConvencion() {
+      const titulo = document.getElementById('conv-titulo').value.trim();
+      const contenido = document.getElementById('conv-contenido').value.trim();
+      if (!titulo || !contenido) return;
+      await fetch(`${API}/api/memoria/convenciones`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({titulo, contenido})
+      });
+      document.getElementById('conv-titulo').value = '';
+      document.getElementById('conv-contenido').value = '';
+      loadConvenciones();
+    }
+
+    async function delConvencion(id) {
+      await fetch(`${API}/api/memoria/convenciones/${id}`, {method:'DELETE'});
+      loadConvenciones();
+    }
+
+    function quickConvencion(titulo, contenido) {
+      document.getElementById('conv-titulo').value = titulo;
+      document.getElementById('conv-contenido').value = contenido;
+    }
+
+    // ── Historial ──────────────────────────────────────────────────────────
+    async function loadHistorial() {
+      const r = await fetch(`${API}/api/memoria/historial`);
+      const d = await r.json();
+      const lista = document.getElementById('historial-lista');
+      const items = d.historial || [];
+      lista.innerHTML = items.length === 0
+        ? '<p class="text-slate-600 text-sm text-center py-4">Sin historial aún.</p>'
+        : items.map(h => `
+          <div class="card p-3">
+            <div class="flex items-center justify-between mb-1">
+              <span class="badge ${h.tipo === 'generar' ? 'bg-blue-900 text-blue-300' : 'bg-orange-900 text-orange-300'}">
+                ${h.tipo === 'generar' ? '✨ Generación' : '🔧 Corrección'}
+              </span>
+              <div class="flex items-center gap-2">
+                <span class="text-slate-600 text-xs">${h.created.slice(0,16).replace('T',' ')}</span>
+                <button class="btn-danger" onclick="delHistorial(${h.id})">✕</button>
+              </div>
+            </div>
+            <p class="text-slate-400 text-xs truncate">${h.entrada.slice(0,120)}</p>
+          </div>`).join('');
+    }
+
+    async function delHistorial(id) {
+      await fetch(`${API}/api/memoria/historial/${id}`, {method:'DELETE'});
+      loadHistorial();
+    }
+
+    // Init
+    loadProyecto();
   </script>
 </body>
 </html>

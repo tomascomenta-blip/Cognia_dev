@@ -2,6 +2,7 @@
 Cognia Dev - app/main.py
 ========================
 App web local para generacion y correccion de C#/Unity con Ollama.
+Fase 2: memoria de proyecto integrada.
 """
 
 from fastapi import FastAPI
@@ -10,11 +11,12 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
 
-from app.routes.generar import router as generar_router
+from app.routes.generar  import router as generar_router
 from app.routes.corregir import router as corregir_router
-from app.routes.health  import router as health_router
+from app.routes.health   import router as health_router
+from app.routes.memoria  import router as memoria_router
 
-app = FastAPI(title="Cognia Dev", version="1.0.0")
+app = FastAPI(title="Cognia Dev", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -26,6 +28,7 @@ app.add_middleware(
 app.include_router(health_router)
 app.include_router(generar_router)
 app.include_router(corregir_router)
+app.include_router(memoria_router)
 
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 if os.path.isdir(static_dir):
