@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cognia Dev</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; }
+    textarea { font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; resize: none; }
+    .tab-active { border-bottom: 2px solid #60a5fa; color: #60a5fa; }
+    #output-code { white-space: pre-wrap; font-family: 'Cascadia Code','Fira Code','Consolas',monospace; font-size: 13px; }
+    .spinner { border: 3px solid #334155; border-top-color: #60a5fa; border-radius: 50%; width: 20px; height: 20px; animation: spin .7s linear infinite; display:inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #0f172a; } ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 h-screen flex flex-col overflow-hidden">
+
+  <!-- Header -->
+  <header class="flex items-center justify-between px-6 py-3 bg-slate-900 border-b border-slate-800 shrink-0">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-sm">⚙</div>
+      <div>
+        <span class="font-semibold">Cognia <span class="text-blue-400">Dev</span></span>
+        <span class="text-slate-500 text-xs ml-2">Agente C# / Unity</span>
+      </div>
+    </div>
+    <div class="flex items-center gap-2 text-xs">
+      <span class="w-2 h-2 rounded-full bg-slate-600" id="ollama-dot"></span>
+      <span id="ollama-text" class="text-slate-400">verificando Ollama...</span>
+    </div>
+  </header>
+
+  <!-- Tabs -->
+  <div class="flex gap-0 bg-slate-900 border-b border-slate-800 px-6 shrink-0">
+    <button onclick="setTab('generar')" id="tab-generar"
+      class="tab-active px-4 py-2 text-sm font-medium transition-colors">
+      ✨ Generar código
+    </button>
+    <button onclick="setTab('corregir')" id="tab-corregir"
+      class="px-4 py-2 text-sm font-medium text-slate-400 hover:text-slate-200 transition-colors">
+      🔧 Corregir código
+    </button>
+  </div>
+
+  <!-- Main content -->
+  <div class="flex flex-1 overflow-hidden">
+
+    <!-- Left panel: Input -->
+    <div class="w-1/2 flex flex-col border-r border-slate-800 overflow-hidden">
+
+      <!-- GENERAR panel -->
+      <div id="panel-generar" class="flex flex-col flex-1 overflow-hidden">
+        <div class="px-4 pt-4 pb-2 shrink-0">
+          <label class="text-xs text-slate-400 uppercase tracking-wider">Instrucción</label>
+          <textarea id="instruccion"
+            class="mt-2 w-full h-28 bg-slate-800 rounded-xl p-3 text-sm text-slate-100 placeholder-slate-500 border border-slate-700 focus:border-blue-500 focus:outline-none"
+            placeholder="Ej: Crea un script de movimiento de personaje con WASD, velocidad serializable y soporte para Rigidbody2D"></textarea>
+        </div>
+        <div class="px-4 pb-2 shrink-0">
+          <label class="text-xs text-slate-400 uppercase tracking-wider">Contexto del proyecto <span class="text-slate-600">(opcional)</span></label>
+          <textarea id="contexto"
+            class="mt-2 w-full h-20 bg-slate-800 rounded-xl p-3 text-xs text-slate-300 placeholder-slate-600 border border-slate-700 focus:border-blue-500 focus:outline-none"
+            placeholder="Ej: Proyecto 2D top-down, uso Rigidbody2D, tengo un GameManager singleton, prefabs en Resources/Prefabs/"></textarea>
+        </div>
+        <div class="px-4 pb-4 shrink-0">
+          <button onclick="generar()"
+            class="w-full bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-medium py-2.5 rounded-xl transition-colors text-sm">
+            Generar →
+          </button>
+        </div>
+      </div>
+
+      <!-- CORREGIR panel -->
+      <div id="panel-corregir" class="flex flex-col flex-1 overflow-hidden hidden">
+        <div class="px-4 pt-4 pb-2 shrink-0">
+          <label class="text-xs text-slate-400 uppercase tracking-wider">Código a corregir</label>
+          <textarea id="codigo-input"
+            class="mt-2 w-full bg-slate-800 rounded-xl p-3 text-sm border border-slate-700 focus:border-blue-500 focus:outline-none text-green-300"
+            style="height:180px"
+            placeholder="Pega aquí tu script C# con el error..."></textarea>
+        </div>
+        <div class="px-4 pb-2 shrink-0">
+          <label class="text-xs text-slate-400 uppercase tracking-wider">Error / descripción <span class="text-slate-600">(opcional)</span></label>
+          <textarea id="error-input"
+            class="mt-2 w-full h-16 bg-slate-800 rounded-xl p-3 text-xs text-slate-300 placeholder-slate-600 border border-slate-700 focus:border-blue-500 focus:outline-none"
+            placeholder="Ej: NullReferenceException en línea 34, o 'el personaje no se mueve'"></textarea>
+        </div>
+        <div class="px-4 pb-4 shrink-0">
+          <button onclick="corregir()"
+            class="w-full bg-orange-600 hover:bg-orange-500 active:bg-orange-700 text-white font-medium py-2.5 rounded-xl transition-colors text-sm">
+            Corregir →
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right panel: Output -->
+    <div class="w-1/2 flex flex-col overflow-hidden">
+      <div class="flex items-center justify-between px-4 pt-4 pb-2 shrink-0">
+        <label class="text-xs text-slate-400 uppercase tracking-wider">Resultado</label>
+        <div class="flex gap-2">
+          <span id="spinner" class="hidden spinner"></span>
+          <button onclick="copiarCodigo()" id="btn-copiar"
+            class="hidden text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1 rounded-lg transition-colors">
+            📋 Copiar
+          </button>
+        </div>
+      </div>
+
+      <!-- Output area -->
+      <div class="flex-1 mx-4 mb-4 bg-slate-900 rounded-xl border border-slate-800 overflow-auto">
+        <div id="output-placeholder" class="flex items-center justify-center h-full text-slate-600 text-sm">
+          El código generado aparecerá aquí
+        </div>
+        <pre id="output-code" class="hidden p-4 text-green-300 leading-relaxed"></pre>
+      </div>
+
+      <!-- Cambios panel (solo para correccion) -->
+      <div id="cambios-panel" class="hidden mx-4 mb-4 bg-slate-800 rounded-xl border border-slate-700 p-3 text-xs text-slate-300 max-h-32 overflow-auto">
+        <span class="text-yellow-400 font-medium">Cambios realizados:</span>
+        <pre id="cambios-text" class="mt-1 whitespace-pre-wrap"></pre>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const API = 'http://localhost:8001';
+    let ultimoCodigo = '';
+
+    // Health check
+    async function checkOllama() {
+      try {
+        const r = await fetch(`${API}/api/health`);
+        const d = await r.json();
+        const dot = document.getElementById('ollama-dot');
+        const txt = document.getElementById('ollama-text');
+        if (d.ollama) {
+          dot.className = 'w-2 h-2 rounded-full bg-green-500';
+          const modelo = d.modelos.find(m => m.includes('qwen2.5-coder')) || d.modelos[0] || 'desconocido';
+          txt.textContent = `Ollama · ${modelo}`;
+        } else {
+          dot.className = 'w-2 h-2 rounded-full bg-yellow-500';
+          txt.textContent = 'Ollama no detectado — inicia Ollama';
+        }
+      } catch {
+        document.getElementById('ollama-dot').className = 'w-2 h-2 rounded-full bg-red-500';
+        document.getElementById('ollama-text').textContent = 'Sin conexión con Cognia Dev';
+      }
+    }
+    checkOllama();
+    setInterval(checkOllama, 15000);
+
+    // Tab switching
+    function setTab(tab) {
+      document.getElementById('panel-generar').classList.toggle('hidden', tab !== 'generar');
+      document.getElementById('panel-corregir').classList.toggle('hidden', tab !== 'corregir');
+      document.getElementById('tab-generar').className = tab === 'generar'
+        ? 'tab-active px-4 py-2 text-sm font-medium transition-colors'
+        : 'px-4 py-2 text-sm font-medium text-slate-400 hover:text-slate-200 transition-colors';
+      document.getElementById('tab-corregir').className = tab === 'corregir'
+        ? 'tab-active px-4 py-2 text-sm font-medium transition-colors'
+        : 'px-4 py-2 text-sm font-medium text-slate-400 hover:text-slate-200 transition-colors';
+      limpiarOutput();
+    }
+
+    function setLoading(loading) {
+      document.getElementById('spinner').classList.toggle('hidden', !loading);
+    }
+
+    function limpiarOutput() {
+      document.getElementById('output-placeholder').classList.remove('hidden');
+      document.getElementById('output-code').classList.add('hidden');
+      document.getElementById('output-code').textContent = '';
+      document.getElementById('btn-copiar').classList.add('hidden');
+      document.getElementById('cambios-panel').classList.add('hidden');
+      ultimoCodigo = '';
+    }
+
+    function mostrarCodigo(codigo, cambios) {
+      document.getElementById('output-placeholder').classList.add('hidden');
+      const pre = document.getElementById('output-code');
+      pre.textContent = codigo;
+      pre.classList.remove('hidden');
+      document.getElementById('btn-copiar').classList.remove('hidden');
+      ultimoCodigo = codigo;
+      if (cambios) {
+        document.getElementById('cambios-text').textContent = cambios;
+        document.getElementById('cambios-panel').classList.remove('hidden');
+      }
+    }
+
+    function mostrarError(msg) {
+      document.getElementById('output-placeholder').classList.add('hidden');
+      const pre = document.getElementById('output-code');
+      pre.textContent = '❌ ' + msg;
+      pre.classList.remove('hidden');
+      pre.style.color = '#f87171';
+    }
+
+    async function generar() {
+      const instruccion = document.getElementById('instruccion').value.trim();
+      if (!instruccion) return;
+      limpiarOutput();
+      setLoading(true);
+      try {
+        const r = await fetch(`${API}/api/generar`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            instruccion,
+            contexto: document.getElementById('contexto').value.trim() || null,
+          })
+        });
+        const d = await r.json();
+        if (d.error) mostrarError(d.error);
+        else mostrarCodigo(d.codigo);
+      } catch (e) {
+        mostrarError('No se pudo conectar con Cognia Dev. ¿Está corriendo el servidor?');
+      }
+      setLoading(false);
+    }
+
+    async function corregir() {
+      const codigo = document.getElementById('codigo-input').value.trim();
+      if (!codigo) return;
+      limpiarOutput();
+      setLoading(true);
+      try {
+        const r = await fetch(`${API}/api/corregir`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            codigo,
+            error: document.getElementById('error-input').value.trim() || null,
+          })
+        });
+        const d = await r.json();
+        if (d.error) mostrarError(d.error);
+        else mostrarCodigo(d.codigo_corregido, d.cambios);
+      } catch (e) {
+        mostrarError('No se pudo conectar con Cognia Dev. ¿Está corriendo el servidor?');
+      }
+      setLoading(false);
+    }
+
+    function copiarCodigo() {
+      if (!ultimoCodigo) return;
+      navigator.clipboard.writeText(ultimoCodigo).then(() => {
+        const btn = document.getElementById('btn-copiar');
+        btn.textContent = '✅ Copiado';
+        setTimeout(() => btn.textContent = '📋 Copiar', 2000);
+      });
+    }
+
+    // Enter en instruccion = generar
+    document.getElementById('instruccion').addEventListener('keydown', e => {
+      if (e.key === 'Enter' && e.ctrlKey) generar();
+    });
+  </script>
+</body>
+</html>
