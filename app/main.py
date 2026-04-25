@@ -2,7 +2,7 @@
 Cognia Dev - app/main.py
 ========================
 App web local para generacion y correccion de C#/Unity con Ollama.
-Fase 2: memoria de proyecto integrada.
+Fase 3: integración con Discord Bot.
 """
 
 from fastapi import FastAPI
@@ -15,8 +15,9 @@ from app.routes.generar  import router as generar_router
 from app.routes.corregir import router as corregir_router
 from app.routes.health   import router as health_router
 from app.routes.memoria  import router as memoria_router
+from app.discord_bot     import start_bot_thread
 
-app = FastAPI(title="Cognia Dev", version="2.0.0")
+app = FastAPI(title="Cognia Dev", version="3.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -37,3 +38,8 @@ if os.path.isdir(static_dir):
     @app.get("/", include_in_schema=False)
     def index():
         return FileResponse(os.path.join(static_dir, "index.html"))
+
+
+@app.on_event("startup")
+def on_startup():
+    start_bot_thread()
